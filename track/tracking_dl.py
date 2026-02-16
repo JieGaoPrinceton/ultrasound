@@ -150,8 +150,7 @@ def run_inference(model, device, output_path="bubble_tracking_dl.gif"):
             ax.scatter(coords[:, 1], coords[:, 0], color="cyan", marker="o", facecolors="none")
         fig.canvas.draw()
 
-        image = np.frombuffer(fig.canvas.buffer_rgba(), dtype="uint8")
-        image = image.reshape(fig.canvas.get_width_height()[::-1] + (4,))
+        image = np.asarray(fig.canvas.buffer_rgba())
         images.append(image)
         plt.close(fig)
 

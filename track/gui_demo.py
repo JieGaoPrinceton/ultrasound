@@ -66,13 +66,12 @@ def render_gif(inputs, heatmaps):
             ax.scatter(coords[:, 1], coords[:, 0], color="cyan", marker="o", facecolors="none")
         fig.canvas.draw()
 
-        image = np.frombuffer(fig.canvas.buffer_rgba(), dtype="uint8")
-        image = image.reshape(fig.canvas.get_width_height()[::-1] + (4,))
+        image = np.asarray(fig.canvas.buffer_rgba())
         images.append(image)
         plt.close(fig)
 
     buffer = io.BytesIO()
-    imageio.mimsave(buffer, images, fps=2)
+    imageio.mimsave(buffer, images, fps=2, format="GIF")
     buffer.seek(0)
     return buffer
 
@@ -98,7 +97,7 @@ def main():
             with st.spinner("Training..."):
                 losses = train_model(model, device, num_epochs, batch_size, lr)
             st.success("Training complete")
-            st.write({"losses": losses})
+            st.line_chart({"loss": losses})
 
         inputs, _ = tracking_dl.generate_sequence(
             num_frames=num_frames,
@@ -111,7 +110,7 @@ def main():
             outputs = model(input_tensor).cpu().numpy()[0, :, 0]
 
         gif_buffer = render_gif(inputs, outputs)
-        st.image(gif_buffer.getvalue())
+        st.image(gif_buffer.getvalue(), caption="DL tracking result")
         st.download_button(
             label="Download GIF",
             data=gif_buffer.getvalue(),
