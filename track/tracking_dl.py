@@ -8,6 +8,7 @@ from scipy.ndimage import maximum_filter
 
 
 def add_gaussian(image, center, sigma=1.5, amplitude=1.0):
+    """在图像上叠加高斯点（原地修改）。"""
     height, width = image.shape
     x = np.arange(width)
     y = np.arange(height)
@@ -18,8 +19,12 @@ def add_gaussian(image, center, sigma=1.5, amplitude=1.0):
 
 
 def generate_sequence(num_frames, image_size, num_bubbles, noise_std=0.05, sigma=1.5):
+    """生成合成序列（噪声输入 + 干净目标）。"""
     height, width = image_size
-    trajectories = [np.array([np.random.randint(0, height), np.random.randint(0, width)]) for _ in range(num_bubbles)]
+    trajectories = [
+        np.array([np.random.randint(0, height), np.random.randint(0, width)])
+        for _ in range(num_bubbles)
+    ]
     frames = []
 
     for _ in range(num_frames):
@@ -51,6 +56,7 @@ class ConvLSTMCell(nn.Module):
         )
 
     def forward(self, x, h, c):
+        """单步前向，返回下一时刻的隐藏态与记忆态。"""
         combined = torch.cat([x, h], dim=1)
         gates = self.conv(combined)
         i, f, o, g = torch.chunk(gates, 4, dim=1)
@@ -70,6 +76,7 @@ class ConvLSTMTracker(nn.Module):
         self.out_conv = nn.Conv2d(hidden_channels, 1, kernel_size=1)
 
     def forward(self, x):
+        """输入序列 -> 输出热力图序列。"""
         batch_size, seq_len, _, height, width = x.shape
         h = torch.zeros(batch_size, self.cell.hidden_channels, height, width, device=x.device)
         c = torch.zeros_like(h)
@@ -80,18 +87,18 @@ class ConvLSTMTracker(nn.Module):
             out = self.out_conv(h)
             outputs.append(out)
 
-        outputs = torch.stack(outputs, dim=1)
-        return outputs
+        return torch.stack(outputs, dim=1)
 
 
 def detect_peaks(heatmap, threshold_factor=1.5, size=7):
+    """在热力图上检测局部峰值坐标。"""
     threshold = heatmap.mean() + threshold_factor * heatmap.std()
     local_max = (heatmap == maximum_filter(heatmap, size=size)) & (heatmap > threshold)
-    coords = np.argwhere(local_max)
-    return coords
+    return np.argwhere(local_max)
 
 
 def train_demo(model, device, num_epochs=3, batch_size=4):
+    """使用合成数据进行快速训练演示。"""
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = nn.MSELoss()
     model.train()
@@ -102,9 +109,14 @@ def train_demo(model, device, num_epochs=3, batch_size=4):
             batch_inputs = []
             batch_targets = []
             for _ in range(batch_size):
-                inputs, targets = generate_sequence(num_frames=10, image_size=(64, 64), num_bubbles=5)
+                inputs, targets = generate_sequence(
+                    num_frames=10,
+                    image_size=(64, 64),
+                    num_bubbles=5,
+                )
                 batch_inputs.append(inputs)
                 batch_targets.append(targets)
+
             batch_inputs = torch.from_numpy(np.stack(batch_inputs)[:, :, None, :, :]).to(device)
             batch_targets = torch.from_numpy(np.stack(batch_targets)[:, :, None, :, :]).to(device)
 
@@ -119,16 +131,16 @@ def train_demo(model, device, num_epochs=3, batch_size=4):
 
 
 def run_inference(model, device, output_path="bubble_tracking_dl.gif"):
+    """推理并保存可视化 GIF。"""
     model.eval()
-    inputs, targets = generate_sequence(num_frames=12, image_size=(64, 64), num_bubbles=5)
+    inputs, _ = generate_sequence(num_frames=12, image_size=(64, 64), num_bubbles=5)
     input_tensor = torch.from_numpy(inputs[None, :, None, :, :]).to(device)
 
     with torch.no_grad():
         outputs = model(input_tensor).cpu().numpy()[0, :, 0]
 
     images = []
-    for t in range(outputs.shape[0]):
-        heatmap = outputs[t]
+    for t, heatmap in enumerate(outputs):
         coords = detect_peaks(heatmap)
 
         fig, ax = plt.subplots(figsize=(4, 4))
@@ -147,6 +159,7 @@ def run_inference(model, device, output_path="bubble_tracking_dl.gif"):
 
 
 def main():
+    """程序入口：训练 + 推理。"""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = ConvLSTMTracker().to(device)
     train_demo(model, device)
