@@ -1,76 +1,222 @@
 # Ultrasound Bubble Processing
 
-这是一个用于超声波微泡信号处理的Python项目。该项目包含三个主要模块：滤波（filter）、定位（location）和跟踪（tracking），用于处理和分析超声波图像中的微泡信号。
+A Python package for processing ultrasound microbubble signals, including filtering, localization, and tracking modules.
 
-## 项目结构
+## Project Structure
 
-- `filter/` - 滤波模块
-  - `fil_1.py` - 低通和高通Butterworth滤波器示例
-  - `fil_2.py` - 其他滤波方法
-  - `fil_3.py` - 高级滤波技术
+```
+ultrasound_processor/
+├── __init__.py          # Package initialization
+├── config.py            # Configuration settings
+├── utils.py             # Utility functions
+├── filter/              # Signal filtering module
+│   ├── __init__.py
+│   ├── fil_1.py         # Butterworth, Chebyshev, FIR, Kalman filters
+│   └── fil_2.py         # Advanced filtering with spectral analysis
+├── loc/                 # Bubble localization module
+│   ├── __init__.py
+│   └── loc_1.py         # Multiple detection algorithms
+└── track/               # Bubble tracking module
+    ├── __init__.py
+    ├── tracking_1.py    # Hungarian algorithm tracking
+    ├── tracking_dl.py   # Deep learning tracker (ConvLSTM)
+    └── gui_demo.py      # Streamlit GUI demo
+```
 
-- `loc/` - 定位模块
-  - `loc_1.py` - 基于局部最大值的微泡定位
-  - `loc_2.py` - 其他定位算法
-  - `loc_3.py` - 定位优化
-  - `loc_4.py` - 多尺度定位
-  - `loc_5.py` - 定位验证
-  - `loc_6.py` - 定位可视化
+## Features
 
-- `track/` - 跟踪模块
-  - `tracking_1.py` - 基于匈牙利算法的微泡跟踪
-  - `tra_2.py` - 跟踪算法改进
-  - `tra_3.py` - 多目标跟踪
+### Filter Module
+- Butterworth low-pass and high-pass filters
+- Chebyshev Type I filters with configurable ripple
+- FIR filters using window method
+- 1D Kalman filter for signal smoothing
+- Power spectral density analysis using Welch's method
 
-## 依赖项
+### Localization Module
+- Gaussian filtering with peak detection
+- Maximum filter-based local maxima detection
+- Median filtering for noise removal
+- Adaptive thresholding with connected component analysis
+- Morphological operations with Canny edge detection
+- Otsu thresholding
 
-- numpy
-- matplotlib
-- scipy
-- scikit-image
+### Tracking Module
+- Hungarian algorithm for optimal bubble matching
+- Connected component analysis for bubble detection
+- Synthetic sequence generation for testing
+- Deep learning-based tracking using ConvLSTM (tracking_dl.py)
+- Interactive GUI demo using Streamlit (gui_demo.py)
 
-## 安装
+## Installation
 
-1. 确保您已安装Python 3.6或更高版本。
-2. 安装依赖项：
+1. Ensure Python 3.8 or higher is installed.
+
+2. Install required dependencies:
 
 ```bash
 pip install numpy matplotlib scipy scikit-image
 ```
 
-## 使用方法
-
-每个模块中的Python脚本都是独立的示例。您可以直接运行它们来查看结果：
-
+Optional dependencies for advanced features:
 ```bash
-python filter/fil_1.py
-python loc/loc_1.py
-python track/tracking_1.py
+pip install torch streamlit pykalman
 ```
 
-这些脚本将生成可视化图表，展示滤波、定位和跟踪的结果。
+## Usage
 
-## 功能概述
+### Basic Import
 
-### 滤波模块
-- 实现各种数字滤波器来处理超声信号
-- 支持低通、高通滤波等
-- 用于去除噪声和提取有用信号
+```python
+from ultrasound_processor import Config
+from ultrasound_processor.filter import fil_1
+from ultrasound_processor.loc import loc_1
+from ultrasound_processor.track import tracking_1
+from ultrasound_processor import utils
+```
 
-### 定位模块
-- 在超声图像中检测微泡位置
-- 使用图像处理技术如高斯滤波和峰值检测
-- 提供精确的微泡定位算法
+### Filtering Example
 
-### 跟踪模块
-- 跟踪微泡在连续帧中的运动
-- 实现多目标跟踪算法
-- 使用优化算法如匈牙利算法进行匹配
+```python
+from ultrasound_processor.filter.fil_1 import (
+    apply_butterworth_filter,
+    create_butterworth_filter,
+    KalmanFilter1D
+)
+import numpy as np
 
-## 贡献
+# Generate test signal
+t = np.linspace(0, 1, 1000)
+signal = np.sin(2 * np.pi * 50 * t) + 0.3 * np.random.randn(1000)
 
-欢迎提交问题和拉取请求来改进这个项目。
+# Apply Butterworth low-pass filter
+filtered = apply_butterworth_filter(
+    signal,
+    order=4,
+    cutoff_frequency=100,
+    sampling_rate=1000,
+    btype='low'
+)
 
-## 许可证
+# Use Kalman filter
+kf = KalmanFilter1D(initial_state=0.0)
+kalman_filtered = kf.filter_sequence(signal)
+```
 
-本项目采用MIT许可证。
+### Localization Example
+
+```python
+from ultrasound_processor.loc.loc_1 import (
+    detect_bubbles_gaussian,
+    detect_bubbles_adaptive,
+    detect_bubbles_morphological
+)
+import numpy as np
+
+# Create test image
+image = np.zeros((200, 200))
+image[50, 50] = 1
+image[100, 100] = 1
+image += 0.1 * np.random.rand(200, 200)
+
+# Detect bubbles using different methods
+positions_gaussian = detect_bubbles_gaussian(image, sigma=2.0)
+positions_adaptive = detect_bubbles_adaptive(image)
+positions_morph = detect_bubbles_morphological(image)
+```
+
+### Tracking Example
+
+```python
+from ultrasound_processor.track.tracking_1 import (
+    track_bubbles_hungarian,
+    generate_synthetic_sequence
+)
+
+# Generate synthetic sequence
+frames, true_trajectories = generate_synthetic_sequence(
+    num_frames=20,
+    image_size=(200, 200),
+    num_bubbles=10,
+    seed=42
+)
+
+# Track bubbles
+tracked_positions = track_bubbles_hungarian(frames)
+```
+
+### Using Utilities
+
+```python
+from ultrasound_processor import utils
+
+# Generate test data
+t, signal = utils.generate_test_signal(
+    sampling_rate=1000,
+    frequencies=[50, 200],
+    seed=42
+)
+
+image, positions = utils.generate_test_image(
+    image_size=(200, 200),
+    num_bubbles=10,
+    seed=42
+)
+```
+
+### Running the GUI Demo
+
+```bash
+cd ultrasound_processor/track
+streamlit run gui_demo.py
+```
+
+## Configuration
+
+Default configuration parameters are available in `config.py`:
+
+```python
+from ultrasound_processor import Config
+
+print(f"Sampling rate: {Config.DEFAULT_SAMPLING_RATE} Hz")
+print(f"Image size: {Config.IMAGE_SIZE}")
+print(f"Gaussian sigma: {Config.GAUSSIAN_SIGMA}")
+```
+
+## API Reference
+
+### Filter Module (`ultrasound_processor.filter.fil_1`)
+
+- `create_butterworth_filter(order, cutoff_frequency, sampling_rate, btype)`
+- `apply_butterworth_filter(signal, order, cutoff_frequency, sampling_rate, btype)`
+- `create_chebyshev_filter(order, cutoff_frequency, sampling_rate, ripple, btype)`
+- `apply_chebyshev_filter(signal, order, cutoff_frequency, sampling_rate, ripple, btype)`
+- `create_fir_filter(numtaps, cutoff_frequency, sampling_rate, pass_zero)`
+- `apply_fir_filter(signal, numtaps, cutoff_frequency, sampling_rate, pass_zero)`
+- `KalmanFilter1D` - Class for 1D Kalman filtering
+
+### Localization Module (`ultrasound_processor.loc.loc_1`)
+
+- `detect_bubbles_gaussian(image, sigma, min_distance, threshold_abs)`
+- `detect_bubbles_maximum_filter(image, sigma, filter_size, threshold)`
+- `detect_bubbles_median(image, filter_size, max_filter_size, threshold)`
+- `detect_bubbles_adaptive(image, median_size, gaussian_sigma, std_multiplier, min_area, max_area)`
+- `detect_bubbles_morphological(image, canny_sigma, otsu_threshold, min_size)`
+
+### Tracking Module (`ultrasound_processor.track.tracking_1`)
+
+- `detect_bubbles_in_frame(frame, threshold, sigma)`
+- `compute_cost_matrix(tracked_positions, detected_positions)`
+- `track_bubbles_hungarian(frames, initial_threshold, sigma)`
+- `generate_synthetic_sequence(num_frames, image_size, num_bubbles, max_displacement, noise_level, seed)`
+
+### Utilities (`ultrasound_processor.utils`)
+
+- `generate_test_signal(sampling_rate, duration, frequencies, noise_level, seed)`
+- `generate_test_image(image_size, num_bubbles, noise_level, seed)`
+- `calculate_distance(point1, point2)`
+- `create_cost_matrix(tracked_positions, detected_positions)`
+- `validate_coordinates(coordinates, image_shape)`
+
+## License
+
+This project is licensed under the MIT License.
